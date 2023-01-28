@@ -1,57 +1,23 @@
 #include <cstdlib>
 #include <iostream>
 #include <vector>
+#include <iterator>
+#include <cmath>
 #include <stdlib.h>
 #include <algorithm>
 
-template <class T>
-class bin_heap {
-	std::vector<T> inner;
-	int n;
-	void sift_down(int from, int end) {
-		sift_down(inner, from, end);
-	};
-	void sift_up(int from) {
-		int next;
-		while (from > 0 && inner[from] < inner[next = (from + 1)/2 - 1] ){
-			swap(inner[from], inner[next]);
-			from = next;
-		}
-	}
-public:
-	bin_heap(int N): inner(N) { n = 0; }
-	void insert(T x){
-		inner[++n] = x;
-		sift_up(n);
-	}
+#define GOLDEN_RATIO 1.618033988749894
+const double G_INV = 1.0 / log(GOLDEN_RATIO);
 
-	T find_min(){
-		return inner[0];
-	}
-
-	void del(int i){
-		inner[i] = inner[n --];
-		if (i <= n) {
-			sift_down(i, n);
-			sift_up(i);
-		}
-	}
-
-	void decrease_key_by_index(int i, int new_key){
-		inner[i] = new_key;
-		sift_up(i);
-	}
-
-	void decrease_key(int old_key, int new_key){
-		for (int i = 0; i < inner.size(); i++){
-			if (inner[i].key == old_key){
-				decrease_key_by_index(i, new_key);
-			}
-		}
-	}
-};
 
 #define DEBUG 1 
+
+template <class T>
+T quick_default(T a, T def){
+	if (a == NULL)
+		return def;
+	return a;
+}
 
 template <class T>
 class node {
@@ -67,59 +33,118 @@ public:
 public: 
 #endif 
 	node(T inner, node<T> *parent, node<T> *child, node<T> *left, node<T> *right, int degree, bool excited) 
-		: degree(degree), excited(excited) {
+		: degree(degree), excited(excited), inner(inner), parent(parent), child(child), left(left), right(right) {
+	}
+
+	node() : node((T) NULL, NULL, NULL, this, this, 0, false) {}
+
+	node(T inner) : node() {
 		this->inner = inner;
-		this->parent = parent;
+	}
+
+	node(T val, node<T>* child): node(val) {
 		this->child = child;
-		this->left = left;
-		this->right = right;
-	}
-
-	node() { this->left = this; this->right = this; this->degree = 0; }
-
-	node(T inner) {
-		this->inner = inner;
-		this->parent = NULL;
-		this->child = NULL;
-		this->left = this;
-		this->right = this;
-		this->degree = 0;
-	}
-
-	node(std::vector<T> inner){
-		node<T> *next = this; 
-		node<T> *previous = this;
-		for (T elem: inner){
-			next->inner = elem;
-			next->parent = NULL;
-			next->child = NULL;
-			next->left = previous;
-			previous = next;
-			
-			next->right = new node();
-			next = next->right;
-		}
-		previous->right = this;
-		this->left = previous;
-		this->degree = 0;
-	}
-
-	node(T val, node<T>* child){
-		this->left = this; 
-		this->right = this;
-		this->inner = val;
-		this->child = child;
-		this->parent = nullptr;
 		this->degree = child->length();
 		child->reparent(this);
-	} 
+	}
+
+	bool lone_child(){
+		bool tr = this->right == this;
+		bool tl = this->left == this;
+		if (tr ^ tl) {
+			std::cout << "WARNING: unsure lone child!\n";
+		}
+		return tr && tl;
+	}
+
+	void insert_sibling(T val){ // inserts another sibling into the list
+		node<T> *n = new node(val, parent, NULL, this->left, this, 0, false);
+
+		this->left->right = n;
+		this->left = n;
+	}
+
+	void reparent(node<T>* parent){ // reparents the node and its siblings
+		node<T> *next = this; 
+		do { next->parent = parent; next = next->right; } while (next != this);
+	}
+
+	void reset_pred(){
+		this->left = this;
+		this->right = this;
+		this->parent = NULL;
+	}
+
+	void isolate_adopt(){
+		bool is_lone = lone_child();
+		if (this->parent != NULL && this->parent->child == this)
+			this->parent->child = this->next_or_child();
+		
+		if (this->child == NULL) {
+			this->right->left = this->left;
+			this->left->right = this->right;
+		} else if (!is_lone) {
+			this->right->left = this->child->left;
+			this->left->right = this->child;
+			this->child->reparent(this->parent);
+			this->child->left->right = this->right;
+			this->child->left = this->left;
+		}
+		reset_pred();
+	}
+
+	void isolate_with_child(){
+		bool is_lone = lone_child();
+		if (this->parent != NULL && this->parent->child == this)
+			this->parent->child = this->next();
+		
+		this->right->left = this->left;
+		this->left->right = this->right;
+		reset_pred();
+	}
+
+
+	node<T>* next(){
+		return this->right == this ? NULL : this->right;
+	}
+
+	node<T>* next_or_child(){
+		return quick_default(this->next(), this->child);
+	}
+
+	void remove_parent(){
+		reparent(NULL);
+	}
+
+	void concat(node<T>* val){ // concatenates 2 nodes to become siblings
+		val->reparent(parent);
+		node<T>* last_val = val->left;
+		last_val->right = this;
+		val->left = this->left;
+
+		this->left->right = val;
+		this->left = last_val;
+	}
+
+	node(std::vector<T> inner): node(inner[0]) {
+		for (auto it = inner.begin() + 1; it != inner.end(); ++it){
+			insert_sibling(*it);
+		}
+	}
 
 	int length(){
 		int returning = 0; 
 		node<T> *next = this;
-		do { returning ++; next = next->right; }
-		while (next != this);
+		do { returning ++; next = next->right; } while (next != this);
 		return returning;
+	}
+
+	static node<T>* init_or_insert(node<T>* list, T val){
+		if (list == NULL){
+			return new node<T>(val);
+		}
+		list->insert_sibling(val);
+		return list;
 	}
 
 	static void connect( std::vector<node<T>*> inner ){ 
@@ -151,35 +176,15 @@ public:
 	}
 
 	node<T>* merge(node<T> *other){
-		node<T> *larger;
-		node<T> *smaller;
-		if (this->inner < other->inner) {
-			larger = other;
-			smaller = this;
-		} else {
-			larger = this;
-			smaller = other;
-		}
-		if (smaller->child == NULL) {
-			larger->left = larger;
-			larger->right = larger;
-			smaller->child = larger;
-		} else {
-			larger->right = smaller->child; // einfügen in die Liste des Kleineren
-			larger->left = smaller->child->left;
-			smaller->child->left->right = larger;
-			smaller->child->left = larger;
-		}
+		auto const& [smaller, larger] = std::minmax(this, other, [](node<T>* a, node<T>* b){ return a->inner < b->inner; });
 
-		larger->parent = smaller;
-		smaller->degree += 1;
+		larger->isolate_with_child();
+		smaller->add_children(larger);
+
 		return smaller;
 	}
 
-	void reparent(node<T>* parent){
-		node<T> *next = this; 
-		do { next->parent = parent; next = next->right; } while (next != this);
-	}
+	
 
 	void print_only(int direction) { 
 		std::string cur_prefix = "└──";
@@ -216,22 +221,20 @@ public:
 		} while (next != this);
 	}
 
-	void add_child(node<T>* child){
-		if (this->child == NULL)
+	void add_children(node<T>* child){
+		int l = child->length();
+		if (this->child == NULL){
+			child->reparent(this);
 			this->child = child;
-		else {
-			child->left = this->child->left;
-			child->right = this->child;
-			this->child->left->right = child;
-			this->child->left = child;
+		} else {
+			this->child->concat(child); 
 		}
-		child->parent = this;
-		this->degree++;
+		this->degree += l;
 	}
 
-	void add_child(T value){
+	void add_single_child(T value){
 		node<T>* child = new node<T>(value);
-		add_child(child);
+		add_children(child);
 	}
 
 	void remove_child(node<T>* some_child) {
@@ -260,13 +263,6 @@ public:
 		this->left = this; 
 		this->right = this;
 	}
-
-	~node() { 
-		delete child; 
-
-		delete right; 
-	}
-
 };
 
 template <class T>
@@ -277,17 +273,6 @@ public: // for debugging
 	int n;
 	node<T> *list;
 	node<T> *min;
-
-	node<T> *merge_single(node<T>* l, node<T> r){
-		node<T> *higher;
-		node<T> *lower;
-		if (l->inner < r->inner){
-		}
-		higher->right = lower->child;
-		higher->left = lower->child->left;
-		l->child = r;
-		return lower;
-	}
 #if DEBUG != 1
 public:
 #endif
@@ -296,38 +281,14 @@ public:
 		list = nullptr;
 		min = nullptr;
 	}
-
-	void test(){ 
-		node<int>* node_test_child = new node<int>(std::vector<int>{5, 18, 12, 8});
-		node_test_child->right->add_child(26);
-		node_test_child->left->add_child(8);
-		node_test_child->left->add_child(17);
-		node<int>* node_test = new node<int>(3, node_test_child);
-		node<int>* node15 = new node<int>(15);
-		node<int>* node7 = new node<int>(7);
-		node7->add_child(12);
-		node<int>::connect(std::vector<node<int> *> {node7, node15, node_test});
-		this->n = 11;
-		this->min = node_test;
-		this->list = node7;
-
-	}
-
 	void insert(T el){
-          node<T> *new_list =
-              new node<T>(el, NULL, NULL, NULL, list, 0, false); // right wurde gesetzt
-          node<T> *left = n == 0 ? new_list : list->left;
-		  left->right = new_list;
-          new_list->left = left;
-		  if (n != 0)
-			  list->left = new_list;
-          // Implementierung als zyklische doppelt verkettete Liste
-          // right ist also immer NULL
-          list = new_list;
+          list = node<T>::init_or_insert(list, el);
           n++;
 
-          if (min == nullptr || el < min->inner)
-            min = list;
+		  if (min == nullptr)
+				min = list;
+		  else if (el < min->inner)
+				min = list->left; // insertion fügt links hinzu
 	}
 
 	T find_min(){
@@ -335,59 +296,61 @@ public:
 	}
 
 	void del_min(){
-		// minimale Element entfernen und die Kinder davon in die Liste einzufügen
-		node<T> *next; // das Element rechts vom Minimum
-		if (min->right == min){
-			list = min->child;
-		} else {
-			if (min->degree == 0) {
-				next = min->right;
-			} else {
-				next = min->child;
-				min->child->reparent(NULL);
-				min->child->left->right = min->right;
-			}
-			min->left->right = next;
-			next->left = min->left;
-			if (list == min){
-				list = next;
-			}
+		if (n-- == 0) {
+			std::cout << "I have no elements left D:\n";
+			return;
 		}
 
-		min->left = nullptr;
-		min->right = nullptr;
-		min->parent = nullptr;
-		min->child = nullptr;
+		// minimale Element entfernen und die Kinder davon in die Liste einzufügen
+		if (min == list)
+			list = min->next_or_child();
+
+		
+		min->isolate_adopt();
+		/* this->print(0); */
 		delete min;
-		std::cout << "after delete\n";
+		if (list == NULL)
+			return;
+		list->remove_parent();
+		/* std::cout << "after delete\n"; */
+		/* this->print(0); */
 		// Aufräumen der Bäume
-		std::vector<node<T>*> B(n); // NULL init
+		std::vector<node<T>*> B(ceil(log((double) n) * G_INV) + 2, NULL); // NULL init
+		node<T>* next = list;
 		node<T> *end = next;
 
 		// std::cout << list->length() << "\n";
 		int len = list->length();
 		for (int i = 0 ; i < len ; i++){
+			/* std::cout << "yyoooo right\n"; */
+			/* next->right->print_only(0); */
+			/* if (next == NULL){ */
+			/* 	std::cout << "what\n"; */
+			/* } */
+			node<T>* succ = next->right;
 			while (B[next->degree] != NULL) {
+				/* std::cout << "merge\n"; */
 				int current_degree = next->degree;
-				node<T> *real_next = next->right;
-
 				next = next->merge(B[current_degree]);
-				next->right = real_next;
 				B[current_degree] = NULL;
 			}
 			B[next->degree] = next;
 
-			next = next->right;
+			/* if (next->right == NULL){ */
+			/* 	std::cout << "FML\n"; */
+			/* } */
+			next = succ;
 
-			// std::for_each(B.begin(), B.end(), [](node<T>* n){ if (n == NULL) std::cout << "NULL, \n"; else n->print_only("");  });
-			// std::cout << "\n\n\n\n\n\n";
+			/* std::for_each(B.begin(), B.end(), [](node<T>* n){ if (n == NULL) std::cout << "NULL, \n"; else n->print_only(0);  }); */
+			/* std::cout << "next:\n\t"; */
+			/* next->print_only(0); */
+			/* std::cout << "\n\n\n\n\n\n"; */
 		}
 
 		// std::cout << "B: \n"; std::for_each(B.begin(), B.end(), [](node<T>* n){ if (n == NULL) std::cout << "NULL, \n"; else n->print_only("");  });
 		min = node<T>::connect(B, true);
 		list = min;
 
-		n--;
 	}
 
 	void dec_key(node<T> *n, T new_val){ 
@@ -443,7 +406,8 @@ public:
 	void print(int direction){
 		std::cout << "fib heap: " << n << "\n";
 
-		list->print("", direction);
+		if (list != NULL)
+			list->print("", direction);
 	}
 
 	~fib_heap() { 
@@ -451,72 +415,29 @@ public:
 };
 
 
-void test_fib_heap(){ 
-	fib_heap<int> fib;
-	fib.test();
-/*	fib.print(0);*/
-/*	fib.print(1); */
-
-/* 	𝑖𝑛𝑡 𝑛 = 𝑓𝑖𝑏.𝑓𝑖𝑛𝑑ₘ𝑖𝑛(); */
-	fib.del_min();
-
-/* 	𝑠𝑡𝑑∶∶𝑐𝑜𝑢𝑡 << "𝑟𝑒𝑠𝑢𝑙𝑡∶ " << 𝑛 << "\𝑛"; */ 
-
-	fib.print(0);
-/* 	/1* 𝑓𝑖𝑏.𝑝𝑟𝑖𝑛𝑡(1); *1/ */
-
-/* 	𝑛 = 𝑓𝑖𝑏.𝑓𝑖𝑛𝑑ₘ𝑖𝑛(); */
-/* 	𝑠𝑡𝑑∶∶𝑐𝑜𝑢𝑡 << "𝑟𝑒𝑠𝑢𝑙𝑡∶ " << 𝑛 << "\𝑛"; */ 
-
-/* 	𝑓𝑖𝑏.𝑑𝑒𝑙ₘ𝑖𝑛(); */
-/* 	𝑓𝑖𝑏.𝑝𝑟𝑖𝑛𝑡(0); */
-
-/* 	𝑓𝑖𝑏.𝑖𝑛𝑠𝑒𝑟𝑡(3); */
-/* 	𝑓𝑖𝑏.𝑖𝑛𝑠𝑒𝑟𝑡(7); */
-	/* 	𝑓𝑖𝑏.𝑖𝑛𝑠𝑒𝑟𝑡(11); */
-/* 	𝑓𝑖𝑏.𝑖𝑛𝑠𝑒𝑟𝑡(55); */
-/* 	𝑓𝑖𝑏.𝑝𝑟𝑖𝑛𝑡(0); */
-
-/* 	𝑓𝑖𝑏.𝑑𝑒𝑙ₘ𝑖𝑛(); */
-/* 	𝑓𝑖𝑏.𝑝𝑟𝑖𝑛𝑡(0); */
-
-	// fib.dec_key(fib.list->left, 12); //  sollte die msg ausprinten 
-	// fib.dec_key(fib.list->right, 12); // sollte eifnach so funktionieren
-	/*fib.dec_key(fib.list->right, 1); // sollte das neue min setzen
-	int n = fib.find_min(); // sollte 1 sein 
-	std::cout << n << "\n";*/
-	// fib.dec_key(fib.list->left->child, 2); // sollte dann zu ner Wurzel werden
-	// fib.dec_key(fib.list->left->child->right, 2); // sollte dann zu ner Wurzel mit Kind werden
-	
-	// fib.dec_key(fib.list->left->child->right, 2); // sollte zu einer Wurzel ohne neuem Kind werden
-	fib.dec_key(fib.list->child->left, 2);
-	fib.print(0);
-	fib.dec_key(fib.list->child, 3);
-	fib.print(0);
-}
-
 
 int main(int argc, char** argv){
 	fib_heap<int> test;
 
 	fib_heap<int> fib;
-	srand(time(NULL));
-	for (int i = 0; i< 10; i++){
+	int seed = time(NULL);
+	std::cout << "seed: " << seed << "\n";
+	srand(seed);
+	float a, b, c;
+	a = (float)clock()/CLOCKS_PER_SEC;
+	for (int i = 0; i< 1000000; i++){
 		fib.insert(rand());
 	}
-	fib.print(0);
-	std::cout << "yo2\n";
-	fib.del_min();
-	fib.print(0);
-	for (int i = 0; i<=0; i++){
-		std::cout << i << ": " << fib.find_min() << "\n";
+	b = (float)clock()/CLOCKS_PER_SEC;
+	for (int i = 0; i< 1000000; i++){
+		/* fib.print(0); */
+		/* std::cout << "MIN: " << i << ": " << fib.find_min() << "\n"; */
 		fib.del_min();
 	}
+	c = (float)clock()/CLOCKS_PER_SEC;
 	fib.print(0);
-	std::cout << 1 << ": " << fib.find_min() << "\n";
-	fib.del_min();
-
-	std::cout << "yo3\n";
+	std::cout << "</ENDE>\n";
+	std::cout << (b - a) << ", " << (c - b) << "\n";
 
 
 

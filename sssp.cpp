@@ -44,6 +44,21 @@ class bellman_ford {
 	}
 };
 
+
+template <class T>
+class dijkstra {
+	std::vector<T> &d;
+	network<T>& G;
+	int s;
+	
+	dijkstra(const network<T>& G_, const int s_, std::vector<T>& d_): G(G_), d(d_), s(s_) {
+		int k = s; // momentaner Knoten zum Bearbeiten
+
+		G[k]
+	}
+};
+
+
 int main(){
 
 }
