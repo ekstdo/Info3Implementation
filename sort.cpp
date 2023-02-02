@@ -3,6 +3,7 @@
 #include <vector>
 #include <stdlib.h>
 #include <algorithm>
+#include <fmt/ranges.h>
 
 template <class T>
 std::vector<T> insertion_sort(std::vector<T>& vec){
@@ -12,7 +13,6 @@ std::vector<T> insertion_sort(std::vector<T>& vec){
 		T x = vec[k];
 
 		int i = k - 1;
-
 		while (i >= 0 && x < vec[i]){
 			vec[i + 1] = vec[i];
 			i--;
@@ -48,11 +48,6 @@ std::vector<T> merge_sort(std::vector<T> &A, int p, int r){
 }
 
 template <class T>
-void swap(T& x, T& y){
-	T t = x; x = y; y = t;
-}
-
-template <class T>
 int partition(std::vector<T> &A, int p, int r, int t){
 	T x = A[t];
 	A[t] = A[p];
@@ -60,7 +55,7 @@ int partition(std::vector<T> &A, int p, int r, int t){
 	int i = p;
 	for (int j = p + 1; j < r; j ++)
 		if (A[j] < x)
-			swap(A[++i], A[j]);
+			std::swap(A[++i], A[j]);
 	
 	A[p] = A[i];
 	A[i] = x;
@@ -91,7 +86,7 @@ template <class T>
 std::vector<T> heap_sort(std::vector<T>& A){
 	heapify(A);
 	for (int a = A.size() - 1 ; a >= 0; a--){
-		swap(A[a], A[0]);
+		std::swap(A[a], A[0]);
 		sift_down(A, 0, a - 1);
 	}
 	return A;
@@ -106,7 +101,7 @@ void sift_down(std::vector<T> &A, int el, int end){
 		if (child < end && A[child + 1] < A[child])
 			child ++;
 		if (A[el] > A[child]){
-			swap(A[el], A[child]);
+			std::swap(A[el], A[child]);
 			el = child;
 		} else break;
 	}
@@ -171,8 +166,45 @@ std::vector<T> counting_sort(std::vector<T> &A){
 	return B;
 }
 
+void radix_sort(std::vector<int>& A, int basis){
+	int n = A.size(), high = *std::max_element(A.begin(), A.end());
+	std::vector<int> B(n);
+	for (int k = 1; k < high; k *= basis){
+		for (int i = 0; i < n; i++){
+			B[i] = (A[i] / k) % basis;
+			fmt::print("aaaa\n");
+			B = counting_sort(B);
+		}
+	}
+}
+
+template<class T>
+void radix_sort(std::vector<T>& A, int basis){
+	int n = A.size(), high = std::max_element(A.begin(), A.end(), [](T a, T b){ return a.bigkey < b.bigkey;});
+	for (int k = 0; k < high; k *= basis){
+		for (int i = 0; i < n; i++){
+			A[i].key = (A[i].bigkey / k) % basis;
+			A = counting_sort(A);
+		}
+	}
+}
+
+template<class T>
+void radix_sort(std::vector<T>& A){
+	radix_sort(A, A.size());	
+}
 
 
+int main(){
+	std::vector<int> L;
+	srand(time(NULL));
+	for (int i = 0; i < 100; i ++){
+		L.push_back(random() );
+	}
+	fmt::print("{}\n", L);
+	radix_sort(L, 10);
+	fmt::print("{}\n", L);
+}
 	/*
 	merge(v, 0, q, v.size());
 	for (int i : v){ 
