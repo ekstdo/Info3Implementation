@@ -7,7 +7,7 @@ template <class T>
 using edge = std::tuple<int, int, T>;
 
 template <class T>
-std::vector<std::tuple<int, int>> kruskal(network<T> N) {
+std::vector<edge<T>> kruskal(network<T>& N) {
 	unionfind_compressed uf(N.size());
 	std::vector<edge<T>> edge_list;
 	std::vector<edge<T>> resulting;
@@ -32,3 +32,25 @@ std::vector<std::tuple<int, int>> kruskal(network<T> N) {
 	return resulting;
 }
 
+template <class T>
+std::vector<edge<T>> prim(network<T>& N){
+	std::vector<int> d(N.size());
+	fib_heap_KV<T, int> queue;
+
+	std::vector<edge<T>> resulting;
+
+	infty(N, T);
+
+	for (int i = 0; i < N.size(); i ++){
+		d[i] = infty;
+		queue.insert(d[i], i);
+	}
+
+	std::vector<edge<T>> link;
+	while (!queue.empty()){
+		int u = queue.extract_min();
+		if (d[u] < infty) resulting.push_back(link[u]);
+		for (const auto& [to, cost]: N[u]) {
+		}
+	}
+}

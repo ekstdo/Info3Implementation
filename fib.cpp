@@ -5,21 +5,21 @@
 
 int main(int argc, char** argv){
 	std::vector<int> nums;
-	fib_heap_KV<int, int> fib;
+	fib_heap_IKV<int, int, int> fib;
 	int seed = time(NULL);
 	std::cout << "seed: " << seed << "\n";
 	srand(seed);
 	float a, b, c, d;
 	
-	for (int i = 0; i< 1000000; i++){
+	for (int i = 0; i< 10000000; i++){
 		nums.push_back(rand());
 	}
 	a = (float)clock()/CLOCKS_PER_SEC;
-	for (int i = 0; i< 1000000; i++){
-		fib.insert(nums[i], i);
+	for (int i = 0; i< 10000000; i++){
+		fib.insert(i, nums[i], 0);
 	}
 	b = (float)clock()/CLOCKS_PER_SEC;
-	for (int i = 0; i < 1000000; i++){
+	for (int i = 0; i < 10000000; i++){
 		int index = random() % nums.size();
 		int val = nums[index];
 		fib.dec_key(index, val /2);

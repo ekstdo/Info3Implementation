@@ -324,14 +324,11 @@ public:
 		if (list == NULL)
 			return;
 		list->remove_parent();
-		/* std::cout << "after delete\n"; */
-		/* this->print(0); */
 		// Aufräumen der Bäume
 		std::vector<node<T>*> B(ceil(log((double) n) * G_INV) + 2, NULL); // NULL init
 		node<T>* next = list;
 		node<T> *end = next;
 
-		// std::cout << list->length() << "\n";
 		int len = list->length();
 		for (int i = 0 ; i < len ; i++){
 			node<T>* succ = next->right;
@@ -415,97 +412,17 @@ public:
 
 	~fib_heap() { 
 	}
+
+	T get_inner(node<T>* node){
+		return node->inner;
+	}
 };
+
 
 template <class I, class K, class V>
-class fib_heap_IKV {
-public:
-	fib_heap<dataIKV<I, K, V>> heap;
-	std::unordered_map<V, node<dataIKV<I, K, V>>*> lookup;
-
-	fib_heap_IKV(): heap(), lookup() {}
-
-	void insert(I id, K key, V val){
-		if (lookup[id] != NULL) {
-			std::cout << "id " << id << " already exists D:<\n";
-			return;
-		}
-		lookup[id] = heap.insert({id, key, val});
-	}
-
-	bool is_empty(){
-		return heap.n == 0;
-	}
-
-	V find_min(){
-		return heap.find_min().value;
-	}
-
-	void del_min(){
-		lookup.erase(heap.min->inner.id);
-		heap.del_min();
-	}
-
-	void dec_key(I id, K key_new){
-		node<dataIKV<I, K, V>>* n = lookup[id];
-		if (n == NULL) {
-			std::cout << "Id " << id << " doesn't exist!\n";
-			return;
-		}
-		heap.dec_key(n, {id, key_new, n->inner.value});
-	}
-
-	V extract_min(){
-		V min_val = find_min();
-		del_min();
-		return min_val;
-	}
-};
-
+using fib_heap_IKV = heap_IKV<fib_heap<dataIKV<I, K, V>>, node<dataIKV<I, K, V>>*, I, K, V>;
 
 template <class K, class V>
-class fib_heap_KV {
-public:
-	fib_heap<dataKV< K, V>> heap;
-	std::unordered_map<V, node<dataKV<K, V>>*> lookup;
-
-	fib_heap_KV() : heap(), lookup() {}
-
-	void insert(K key, V val){
-		if (lookup[val] != NULL) {
-			std::cout << "id/val " << val << " already exists D:<\n";
-			return;
-		}
-		lookup[val] = heap.insert({key, val});
-	}
-
-	V find_min(){
-		return heap.find_min().value;
-	}
-
-	void del_min(){
-		lookup.erase(heap.min->inner.value);
-		heap.del_min();
-	}
-
-	void dec_key(V val, K key_new){
-		node<dataKV<K, V>>* n = lookup[val];
-		if (n == NULL) {
-			std::cout << "Id " << val << " doesn't exist!\n";
-			return;
-		}
-		heap.dec_key(n, {key_new, n->inner.value});
-	}
-
-	bool is_empty() {
-		return heap.n == 0;
-	}
-
-	V extract_min(){
-		V min_val = find_min();
-		del_min();
-		return min_val;
-	}
-};
+using fib_heap_KV = heap_KV<fib_heap<dataKV<K, V>>, node<dataKV<K, V>>*, K, V>;
 
 #endif
